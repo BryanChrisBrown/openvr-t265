@@ -6,6 +6,7 @@
 #include <vector>
 #include <thread>
 #include <chrono>
+#include <cmath>
 
 #if defined( _WINDOWS )
 #include <windows.h>
@@ -24,7 +25,15 @@ using namespace vr;
 #error "Unsupported Platform."
 #endif
 
-
+inline HmdQuaternion_t HmdQuaternion_Init( double w, double x, double y, double z )
+{
+	HmdQuaternion_t quat;
+	quat.w = w;
+	quat.x = x;
+	quat.y = y;
+	quat.z = z;
+	return quat;
+}
 
 
 // keys for use with the settings API
@@ -113,11 +122,15 @@ public:
 
 		pose.qWorldFromDriverRotation = HmdQuaternion_Init( 1, 0, 0, 0 );
 		pose.qDriverFromHeadRotation = HmdQuaternion_Init( 1, 0, 0, 0 );
-		
+		// make the tracker go woosh up and down
+		std::chrono::milliseconds timeMs = std::chrono::duration_cast< std::chrono::milliseconds >(
+			std::chrono::system_clock::now().time_since_epoch()
+		);
+		double timeOffset = sin(timeMs.count() / 2000.0);
+		pose.vecPosition[1] = 1.0 + timeOffset / 4.0;
 
 		return pose;
 	}
-
 
 	void RunFrame()
 	{
@@ -163,7 +176,6 @@ public:
 	virtual void LeaveStandby()  {}
 
 private:
-	CSampleDeviceDriver *m_pNullHmdLatest = nullptr;
 	CSampleControllerDriver *m_pController = nullptr;
 };
 
@@ -184,8 +196,6 @@ EVRInitError CServerDriver_Sample::Init( vr::IVRDriverContext *pDriverContext )
 void CServerDriver_Sample::Cleanup() 
 {
 	CleanupDriverLog();
-	delete m_pNullHmdLatest;
-	m_pNullHmdLatest = NULL;
 	delete m_pController;
 	m_pController = NULL;
 }
@@ -193,10 +203,6 @@ void CServerDriver_Sample::Cleanup()
 
 void CServerDriver_Sample::RunFrame()
 {
-	if ( m_pNullHmdLatest )
-	{
-		m_pNullHmdLatest->RunFrame();
-	}
 	if ( m_pController )
 	{
 		m_pController->RunFrame();
