@@ -8,6 +8,10 @@
 #include <chrono>
 #include <cmath>
 
+#include <librealsense2/rs.hpp>
+#include <iostream>
+#include <iomanip>
+
 #if defined( _WINDOWS )
 #include <windows.h>
 #endif
@@ -33,6 +37,74 @@ inline HmdQuaternion_t HmdQuaternion_Init( double w, double x, double y, double 
 	quat.y = y;
 	quat.z = z;
 	return quat;
+}
+
+int runPoseTracking(vr::TrackedDeviceIndex_t *m_unObjectId) {
+	try
+	{
+		// Declare RealSense pipeline, encapsulating the actual device and sensors
+		rs2::pipeline pipe;
+		// Create a configuration for configuring the pipeline with a non default profile
+		rs2::config cfg;
+		// Add pose stream
+		cfg.enable_stream(RS2_STREAM_POSE, RS2_FORMAT_6DOF);
+		// Start pipeline with chosen configuration
+		pipe.start(cfg);
+
+		// Main loop
+		while (true)
+		{
+			// Wait for the next set of frames from the camera
+			auto frames = pipe.wait_for_frames();
+			// Get a frame from the pose stream
+			auto f = frames.first_or_default(RS2_STREAM_POSE);
+			// Cast the frame to pose_frame and get its data
+			auto pose_data = f.as<rs2::pose_frame>().get_pose_data();
+
+			// Print the x, y, z values of the translation, relative to initial position
+			// DriverLog( "Device Position: %3f %3f %3f (meters)\n", pose_data.translation.x,
+			// 	pose_data.translation.y, pose_data.translation.z );
+
+			DriverPose_t pose = { 0 };
+			pose.poseIsValid = true;
+			pose.result = TrackingResult_Running_OK;
+			pose.deviceIsConnected = true;
+
+			pose.qWorldFromDriverRotation = HmdQuaternion_Init( 1, 0, 0, 0 );
+			pose.qDriverFromHeadRotation = HmdQuaternion_Init( 1, 0, 0, 0 );
+			// make the tracker go woosh up and down
+			// std::chrono::milliseconds timeMs = std::chrono::duration_cast< std::chrono::milliseconds >(
+			// 	std::chrono::system_clock::now().time_since_epoch()
+			// );
+			// double timeOffset = sin(timeMs.count() / 2000.0);
+			// pose.vecPosition[1] = 1.0 + timeOffset / 4.0;
+
+			pose.vecPosition[0] = pose_data.translation.x;
+			pose.vecPosition[1] = pose_data.translation.y;
+			pose.vecPosition[2] = pose_data.translation.z;
+			pose.qRotation.w = pose_data.rotation.w;
+			pose.qRotation.x = pose_data.rotation.x;
+			pose.qRotation.y = pose_data.rotation.y;
+			pose.qRotation.z = pose_data.rotation.z;
+
+			if ( *m_unObjectId != vr::k_unTrackedDeviceIndexInvalid )
+			{
+				vr::VRServerDriverHost()->TrackedDevicePoseUpdated( *m_unObjectId, pose, sizeof( DriverPose_t ) );
+			}
+		}
+
+		return EXIT_SUCCESS;
+	}
+	catch (const rs2::error & e)
+	{
+		DriverLog( "RealSense error calling %s (%s): %s\n", e.get_failed_function(), e.get_failed_args(), e.what() );
+		return EXIT_FAILURE;
+	}
+	catch (const std::exception& e)
+	{
+		DriverLog( "%s\n", e.what() );
+		return EXIT_FAILURE;
+	}
 }
 
 
@@ -83,6 +155,16 @@ public:
 
 		// even though we won't ever track we want to pretend to be the right hand so binding will work as expected
 		vr::VRProperties()->SetInt32Property( m_ulPropertyContainer, Prop_ControllerRoleHint_Int32, TrackedControllerRole_RightHand );
+
+		DriverLog("hello\n");
+		
+		// pose thread for realsense t-265
+		m_pPoseThread = new std::thread( runPoseTracking, &m_unObjectId );
+		if ( !m_pPoseThread )
+		{
+			DriverLog( "Unable to create tracking thread\n" );
+			return VRInitError_Driver_Failed;
+		}
 
 		return VRInitError_None;
 	}
@@ -139,7 +221,7 @@ public:
 		// driver blocks it for some periodic task.
 		if ( m_unObjectId != vr::k_unTrackedDeviceIndexInvalid )
 		{
-			vr::VRServerDriverHost()->TrackedDevicePoseUpdated( m_unObjectId, GetPose(), sizeof( DriverPose_t ) );
+			// vr::VRServerDriverHost()->TrackedDevicePoseUpdated( m_unObjectId, GetPose(), sizeof( DriverPose_t ) );
 		}
 	}
 
@@ -147,7 +229,6 @@ public:
 	{
 
 	} 
-
 
 	std::string GetSerialNumber() const { return m_sSerialNumber; }
 
@@ -157,8 +238,7 @@ private:
 
 	std::string m_sSerialNumber;
 	std::string m_sModelNumber;
-
-
+	std::thread *m_pPoseThread;
 };
 
 //-----------------------------------------------------------------------------

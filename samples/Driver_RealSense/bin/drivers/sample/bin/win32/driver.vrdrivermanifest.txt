@@ -1,0 +1,10 @@
+{
+	"alwaysActivate": true,
+	"name" : "realsense",
+	"directory" : "",
+	"resourceOnly" : false,
+	"other_presence" :
+	[
+		"*.*"
+	]
+}

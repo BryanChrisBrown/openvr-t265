@@ -1,0 +1,8 @@
+﻿  driver_sample.cpp
+     Creating library C:\Users\Bryan\Documents\openvr\samples\Driver_RealSense\\bin\drivers\sample\bin\win64\driver_sample.lib and object C:\Users\Bryan\Documents\openvr\samples\Driver_RealSense\\bin\drivers\sample\bin\win64\driver_sample.exp
+  Generating code
+  2 of 408 functions ( 0.5%) were compiled, the rest were copied from previous compilation.
+    0 functions were new in current compilation
+    0 functions had inline decision re-evaluated but remain unchanged
+  Finished generating code
+  driver_sample.vcxproj -> C:\Users\Bryan\Documents\openvr\samples\Driver_RealSense\\bin\drivers\sample\bin\win64\driver_sample.dll
