@@ -83,7 +83,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <OutDir>$(SolutionDir)\bin\drivers\t265\bin\win64\</OutDir>
+    <OutDir>$(SolutionDir)\bin\drivers\sample\bin\win64\</OutDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -163,7 +163,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="driverlog.cpp" />
-    <ClCompile Include="driver_t265.cpp" />
+    <ClCompile Include="driver_realsense_t265.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="driverlog.h" />
