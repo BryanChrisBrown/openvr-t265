@@ -21,9 +21,9 @@ target_link_libraries(${TARGET_NAME}
 function(setTargetOutputDirectory target)
   foreach(type RUNTIME LIBRARY ARCHIVE)
     set_target_properties(${target} PROPERTIES
-      ${type}_OUTPUT_DIRECTORY         ${CMAKE_${type}_OUTPUT_DIRECTORY}/t265
-      ${type}_OUTPUT_DIRECTORY_DEBUG   ${CMAKE_${type}_OUTPUT_DIRECTORY}/t265
-      ${type}_OUTPUT_DIRECTORY_RELEASE ${CMAKE_${type}_OUTPUT_DIRECTORY}/t265
+      ${type}_OUTPUT_DIRECTORY         ${CMAKE_HOME_DIRECTORY}/bin/t265/bin/${ARCH_TARGET}
+      ${type}_OUTPUT_DIRECTORY_DEBUG   ${CMAKE_HOME_DIRECTORY}/bin/t265/bin/${ARCH_TARGET}
+      ${type}_OUTPUT_DIRECTORY_RELEASE ${CMAKE_HOME_DIRECTORY}/bin/t265/bin/${ARCH_TARGET}
     )
   endforeach()
 endfunction()
