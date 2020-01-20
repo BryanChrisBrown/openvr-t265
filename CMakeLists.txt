@@ -2,95 +2,136 @@
 cmake_minimum_required(VERSION 2.8)
 
 # Set project name.
-project(OpenVRSDK)
+project(openvr-t265)
 
-# Fetch the version from the headers
-set(VERSION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/headers/openvr.h")
+# -----------------------------------------------------------------------------
+## SYSTEM PROPERTIES ##
 
-set(VERSION_MAJOR_REGEX "\tstatic const uint32_t k_nSteamVRVersionMajor = (.+);")
-set(VERSION_MINOR_REGEX "\tstatic const uint32_t k_nSteamVRVersionMinor = (.+);")
-set(VERSION_BUILD_REGEX "\tstatic const uint32_t k_nSteamVRVersionBuild = (.+);")
+# If not set, determines the running platform architecture.
+if(NOT PLATFORM)
+  if(CMAKE_SIZEOF_VOID_P MATCHES 8)
+    set(PLATFORM 64)
+  else()
+    set(PLATFORM 32)
+  endif()
+endif()
+message(STATUS "Compilation set for ${PLATFORM}bits architectures.")
 
-file(STRINGS "${VERSION_FILE}" VERSION_MAJOR_STRING REGEX "${VERSION_MAJOR_REGEX}")
-file(STRINGS "${VERSION_FILE}" VERSION_MINOR_STRING REGEX "${VERSION_MINOR_REGEX}")
-file(STRINGS "${VERSION_FILE}" VERSION_BUILD_STRING REGEX "${VERSION_BUILD_REGEX}")
+if(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+  add_definitions(-DLINUX -DPOSIX)
+  set(ARCH_TARGET linux64)
 
-string(REGEX REPLACE "${VERSION_MAJOR_REGEX}" "\\1" VERSION_MAJOR ${VERSION_MAJOR_STRING})
-string(REGEX REPLACE "${VERSION_MINOR_REGEX}" "\\1" VERSION_MINOR ${VERSION_MINOR_STRING})
-string(REGEX REPLACE "${VERSION_BUILD_REGEX}" "\\1" VERSION_BUILD ${VERSION_BUILD_STRING})
+  if(${PLATFORM} MATCHES 32)
+    message(WARNING "OpenVR x86 binaries not provided on GNU/Linux.")
+  endif()
+elseif(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+  set(CMAKE_MACOSX_RPATH 0)
+  add_definitions(-DOSX -DPOSIX)
+  set(ARCH_TARGET osx32)
 
-set(OPENVR_VERSION "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_BUILD}")
+elseif(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
+  add_definitions(-D_WIN32)
+  set(ARCH_TARGET win${PLATFORM})
 
-# Setup some options.
-option(BUILD_SHARED "Builds the library as shared library" OFF)
-option(BUILD_FRAMEWORK "Builds the library as an apple Framework" OFF)
-option(BUILD_UNIVERSAL "Builds the shared or framework as a universal (fat, 32- & 64-bit) binary" ON)
-option(BUILD_OSX_I386 "Builds the shared or framework as a 32-bit binary, even on a 64-bit platform" OFF)
-option(USE_LIBCXX "Uses libc++ instead of libstdc++" ON)
-option(USE_CUSTOM_LIBCXX "Uses a custom libc++" OFF)
+  # Binaries path for thirdparties are not generics so we try to guess their suffixes.
+  set(WINDOWS_PATH_SUFFIXES win${PLATFORM} Win${PLATFORM} x${PLATFORM})
+endif()
 
-add_definitions( -DVR_API_PUBLIC )
+# -----------------------------------------------------------------------------
+## PATHS ##
 
-# Check if 32 or 64 bit system.
-set(SIZEOF_VOIDP ${CMAKE_SIZEOF_VOID_P})
-if(CMAKE_SIZEOF_VOID_P EQUAL 8)
-  set(PROCESSOR_ARCH "64")
+# Check that the steamVR SDK is installed 
+# (needed to prevent a segfault in OpenVR).
+if(CMAKE_HOST_UNIX)
+  find_file(OPENVRPATHS openvrpaths.vrpath PATHS $ENV{HOME}/.config/openvr "$ENV{HOME}/Library/Application Support/OpenVR/.openvr")
+  if(${OPENVRPATHS} MATCHES OPENVRPATHS-NOTFOUND)
+    message(FATAL_ERROR "${OPENVRPATHS} Please install SteamVR SDK to continue..")
+  endif()
+endif()
+
+# Default output directory.
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bin/${ARCH_TARGET})
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bin/${ARCH_TARGET})
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bin/${ARCH_TARGET})
+
+# Force output directory destination, especially for MSVC (@so7747857).
+function(setTargetOutputDirectory target)
+  foreach(type RUNTIME LIBRARY ARCHIVE)
+    set_target_properties(${target} PROPERTIES
+      ${type}_OUTPUT_DIRECTORY         ${CMAKE_${type}_OUTPUT_DIRECTORY}
+      ${type}_OUTPUT_DIRECTORY_DEBUG   ${CMAKE_${type}_OUTPUT_DIRECTORY}
+      ${type}_OUTPUT_DIRECTORY_RELEASE ${CMAKE_${type}_OUTPUT_DIRECTORY}
+    )
+  endforeach()
+endfunction()
+
+# -----------------------------------------------------------------------------
+## COMPILER DETECTION ##
+if(   (${CMAKE_CXX_COMPILER_ID} MATCHES "GNU")
+   OR (${CMAKE_CXX_COMPILER_ID} MATCHES "Clang"))
+  # Better to use the prebuilt GNU preprocessor define __GNUC__,
+  # kept for legacy reason with the sample code.
+  add_definitions(-DGNUC)
+
+  set(CMAKE_CXX_FLAGS         "${CMAKE_CXX_FLAGS} -std=c++11 -include ${SHARED_SRC_DIR}/compat.h")
+  set(CMAKE_CXX_FLAGS_DEBUG   "${CMAKE_CXX_FLAGS_DEBUG} -Wall -Wextra -pedantic -g")
+  set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O2")
+
+  # Handles x86 compilation support on x64 arch.
+  if(${PLATFORM} MATCHES 32)
+    set(CMAKE_CXX_FLAGS        "${CMAKE_CXX_FLAGS} -m32")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -m32")
+  endif()
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+  set(CMAKE_CXX_FLAGS_DEBUG   "${CMAKE_CXX_FLAGS_DEBUG} /W2 /DEBUG")
+  set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MP /INCREMENTAL:NO")
 else()
-  set(PROCESSOR_ARCH "32")
+  message(FATAL_ERROR "Unsupported compiler '${CMAKE_CXX_COMPILER_ID}'")
 endif()
 
-# Get platform.
-if(WIN32)
-  set(PLATFORM_NAME "win")
-  if(NOT BUILD_SHARED)
-    add_definitions(-DOPENVR_BUILD_STATIC)
-  endif()
-elseif(UNIX AND NOT APPLE)
-  if(CMAKE_SYSTEM_NAME MATCHES ".*Linux")
-    set(PLATFORM_NAME "linux")
-    add_definitions(-DLINUX -DPOSIX)
-    if(PROCESSOR_ARCH MATCHES "64")
-        add_definitions(-DLINUX64)
-    endif()
-  endif()
-elseif(APPLE)
-  if(CMAKE_SYSTEM_NAME MATCHES ".*Darwin.*" OR CMAKE_SYSTEM_NAME MATCHES ".*MacOS.*")
-    set(PLATFORM_NAME "osx")
-    add_definitions(-DOSX -DPOSIX)
-    if(BUILD_UNIVERSAL)
-      set(CMAKE_OSX_ARCHITECTURES "i386;x86_64")
-    endif()
-    if(BUILD_OSX_I386)
-      set(PROCESSOR_ARCH "32")
-      set(CMAKE_OSX_ARCHITECTURES "i386")
-    endif()
-  endif()
-endif()
+# -----------------------------------------------------------------------------
+## LIBRARIES ##
 
-# Set output folder for static and shared libraries
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bin/${PLATFORM_NAME}${PROCESSOR_ARCH})
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bin/${PLATFORM_NAME}${PROCESSOR_ARCH})
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bin/${PLATFORM_NAME}${PROCESSOR_ARCH})
+## OpenVR API path
+find_library(OPENVR_LIBRARIES
+  NAMES
+    openvr_api
+  PATHS
+    ${CMAKE_CURRENT_SOURCE_DIR}/3rd/openvr/bin
+    ${CMAKE_CURRENT_SOURCE_DIR}/3rd/openvr/lib
+  PATH_SUFFIXES
+    osx32
+    linux64
+    ${WINDOWS_PATH_SUFFIXES}
+  NO_DEFAULT_PATH
+  NO_CMAKE_FIND_ROOT_PATH
+)
+set(OPENVR_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/3rd/openvr/headers)
 
-# Enable some properties.
-if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID MATCHES "Clang")
-	# Enable c++11 and hide symbols which shouldn't be visible
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fPIC -fvisibility=hidden")
+## Realsense Library path
+find_library(REALSENSE2_LIBRARY
+  NAMES
+    realsense2
+  PATHS
+    "C:/Program Files (x86)/Intel RealSense SDK 2.0/lib/x64"
+    "C:/Program Files/Intel RealSense SDK 2.0/lib/x64"
+  PATH_SUFFIXES
+    osx32
+    linux64
+    ${WINDOWS_PATH_SUFFIXES}
+  NO_DEFAULT_PATH
+  NO_CMAKE_FIND_ROOT_PATH
+)
+set(REALSENSE2_INCLUDE_DIR 
+      "C:/Program Files (x86)/Intel RealSense SDK 2.0/include"
+      "C:/Program Files/Intel RealSense SDK 2.0/include")
 
-	# Set custom libc++ usage here
-	if(CMAKE_C_COMPILER_ID MATCHES "Clang" AND USE_LIBCXX)
-		if(USE_CUSTOM_LIBCXX)
-			if(BUILD_SHARED)
-				set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -stdlib=libc++")
-			endif()
-			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -nostdinc++")
-			include_directories( ${LIBCXX_INCLUDE} ${LIBCXX_ABI_INCLUDE})
-			message(STATUS "Using custom libc++")
-		else()
-			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
-			message(STATUS "Using libc++")
-		endif()
-	endif()
-endif()
+# -----------------------------------------------------------------------------
+## SUBDIRECTORIES ##
 
-add_subdirectory(src)
+include_directories(
+  ${OPENVR_INCLUDE_DIR}
+  ${REALSENSE2_INCLUDE_DIR}
+)
+
+add_subdirectory(driver)

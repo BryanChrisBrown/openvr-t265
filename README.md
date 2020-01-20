@@ -1,13 +1,23 @@
-OpenVR SDK
----
+# OpenVR T265
 
-OpenVR is an API and runtime that allows access to VR hardware from multiple 
-vendors without requiring that applications have specific knowledge of the 
-hardware they are targeting. This repository is an SDK that contains the API 
-and samples. The runtime is under SteamVR in Tools on Steam. 
+This is a community driver to support the Intel T265 sensor on OpenVR for 6DOF tracking.  It is unafiliated with Intel.
 
-### Documentation
+## Build Instructions
 
-Documentation for the API is available on the [Github Wiki](https://github.com/ValveSoftware/openvr/wiki/API-Documentation)
+# Dependencies
+- Visual Studio 2019 CE (https://visualstudio.microsoft.com/vs/). Under workloads make sure to select:
+  - Desktop development with C++
+  - .Net desktop development
+- cmake (https://cmake.org/download/)
+  - making sure to add it at least to the current user's system path
+- Git (https://git-scm.com/download/win/)
 
-More information on OpenVR and SteamVR can be found on http://steamvr.com
+# Installation
+- Launch the windows command prompt `cmd`
+- Run the following
+```
+git clone --recurse-submodules https://github.com/BryanChrisBrown/openvr-t265
+cd openvr-t265
+build.bat
+```
+
