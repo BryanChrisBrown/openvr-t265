@@ -17,4 +17,15 @@ target_link_libraries(${TARGET_NAME}
   ${CMAKE_DL_LIBS}
 )
 
+# Force output directory destination, especially for MSVC (@so7747857).
+function(setTargetOutputDirectory target)
+  foreach(type RUNTIME LIBRARY ARCHIVE)
+    set_target_properties(${target} PROPERTIES
+      ${type}_OUTPUT_DIRECTORY         ${CMAKE_${type}_OUTPUT_DIRECTORY}/t265
+      ${type}_OUTPUT_DIRECTORY_DEBUG   ${CMAKE_${type}_OUTPUT_DIRECTORY}/t265
+      ${type}_OUTPUT_DIRECTORY_RELEASE ${CMAKE_${type}_OUTPUT_DIRECTORY}/t265
+    )
+  endforeach()
+endfunction()
+
 setTargetOutputDirectory(${TARGET_NAME})
