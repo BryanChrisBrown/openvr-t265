@@ -61,17 +61,17 @@ int runPoseTracking(vr::TrackedDeviceIndex_t *m_unObjectId) {
 			// Cast the frame to pose_frame and get its data
 			auto pose_data = f.as<rs2::pose_frame>().get_pose_data();
 
-			// Print the x, y, z values of the translation, relative to initial position
-			// DriverLog( "Device Position: %3f %3f %3f (meters)\n", pose_data.translation.x,
-			// 	pose_data.translation.y, pose_data.translation.z );
-
+			// Check to see if the tracker confidence is not failing.
+			// If not failing provide pose.
 			DriverPose_t pose = { 0 };
-			pose.poseIsValid = true;
+			pose.poseIsValid = pose_data.tracker_confidence != 0;
 			pose.result = TrackingResult_Running_OK;
 			pose.deviceIsConnected = true;
 
+			// TO DO: Expose to vr settings/launcher
 			pose.qWorldFromDriverRotation = HmdQuaternion_Init( 1, 0, 0, 0 );
 			pose.qDriverFromHeadRotation = HmdQuaternion_Init( 1, 0, 0, 0 );
+
 			// make the tracker go woosh up and down
 			// std::chrono::milliseconds timeMs = std::chrono::duration_cast< std::chrono::milliseconds >(
 			// 	std::chrono::system_clock::now().time_since_epoch()
@@ -79,9 +79,21 @@ int runPoseTracking(vr::TrackedDeviceIndex_t *m_unObjectId) {
 			// double timeOffset = sin(timeMs.count() / 2000.0);
 			// pose.vecPosition[1] = 1.0 + timeOffset / 4.0;
 
+			// The reason we have to break everything up is because realsense uses structs 
+			// while openvr uses arrays. The main difference is the types. 
+			// The code below avoids having to write an additional helper function and is easier to read.
 			pose.vecPosition[0] = pose_data.translation.x;
 			pose.vecPosition[1] = pose_data.translation.y;
 			pose.vecPosition[2] = pose_data.translation.z;
+			pose.vecVelocity[0] = pose_data.velocity.x;
+			pose.vecVelocity[1] = pose_data.velocity.y;
+			pose.vecVelocity[2] = pose_data.velocity.z;
+			pose.vecAngularVelocity[0] = pose_data.angular_velocity.x;
+			pose.vecAngularVelocity[1] = pose_data.angular_velocity.y;
+			pose.vecAngularVelocity[2] = pose_data.angular_velocity.z;
+			pose.vecAcceleration[0] = pose_data.acceleration.x;
+			pose.vecAcceleration[1] = pose_data.acceleration.y;
+			pose.vecAcceleration[2] = pose_data.acceleration.z;
 			pose.qRotation.w = pose_data.rotation.w;
 			pose.qRotation.x = pose_data.rotation.x;
 			pose.qRotation.y = pose_data.rotation.y;
@@ -125,7 +137,7 @@ public:
 	{
 		m_unObjectId = vr::k_unTrackedDeviceIndexInvalid;
 		m_ulPropertyContainer = vr::k_ulInvalidPropertyContainer;
-
+// TO DO: Plugin actual info
 		m_sSerialNumber = "CTRL_1234";
 
 		m_sModelNumber = "MyController";
