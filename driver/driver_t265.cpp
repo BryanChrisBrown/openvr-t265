@@ -91,6 +91,9 @@ int runPoseTracking(vr::TrackedDeviceIndex_t *m_unObjectId) {
 			pose.vecAngularVelocity[0] = pose_data.angular_velocity.x;
 			pose.vecAngularVelocity[1] = pose_data.angular_velocity.y;
 			pose.vecAngularVelocity[2] = pose_data.angular_velocity.z;
+			pose.vecAngularAcceleration[0] = pose_data.angular_acceleration.x;
+			pose.vecAngularAcceleration[1] = pose_data.angular_acceleration.y;
+			pose.vecAngularAcceleration[2] = pose_data.angular_acceleration.z;
 			pose.vecAcceleration[0] = pose_data.acceleration.x;
 			pose.vecAcceleration[1] = pose_data.acceleration.y;
 			pose.vecAcceleration[2] = pose_data.acceleration.z;
