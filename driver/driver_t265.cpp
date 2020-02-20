@@ -29,7 +29,7 @@ using namespace vr;
 #error "Unsupported Platform."
 #endif
 
-inline HmdQuaternion_t HmdQuaternion_Init( double w, double x, double y, double z )
+inline HmdQuaternion_t HmdQuaternion_Init(double w, double x, double y, double z)
 {
 	HmdQuaternion_t quat;
 	quat.w = w;
@@ -39,7 +39,7 @@ inline HmdQuaternion_t HmdQuaternion_Init( double w, double x, double y, double 
 	return quat;
 }
 
-int runPoseTracking(vr::TrackedDeviceIndex_t *m_unObjectId) {
+int runPoseTracking(vr::TrackedDeviceIndex_t* m_unObjectId) {
 	try
 	{
 		// Declare RealSense pipeline, encapsulating the actual device and sensors
@@ -69,8 +69,8 @@ int runPoseTracking(vr::TrackedDeviceIndex_t *m_unObjectId) {
 			pose.deviceIsConnected = true;
 
 			// TO DO: Expose to vr settings/launcher
-			pose.qWorldFromDriverRotation = HmdQuaternion_Init( 1, 0, 0, 0 );
-			pose.qDriverFromHeadRotation = HmdQuaternion_Init( 1, 0, 0, 0 );
+			pose.qWorldFromDriverRotation = HmdQuaternion_Init(1, 0, 0, 0);
+			pose.qDriverFromHeadRotation = HmdQuaternion_Init(1, 0, 0, 0);
 
 			// make the tracker go woosh up and down
 			// std::chrono::milliseconds timeMs = std::chrono::duration_cast< std::chrono::milliseconds >(
@@ -102,9 +102,12 @@ int runPoseTracking(vr::TrackedDeviceIndex_t *m_unObjectId) {
 			pose.qRotation.y = pose_data.rotation.y;
 			pose.qRotation.z = pose_data.rotation.z;
 
-			if ( *m_unObjectId != vr::k_unTrackedDeviceIndexInvalid )
+			if (*m_unObjectId != vr::k_unTrackedDeviceIndexInvalid)
 			{
-				vr::VRServerDriverHost()->TrackedDevicePoseUpdated( *m_unObjectId, pose, sizeof( DriverPose_t ) );
+				vr::VRServerDriverHost()->TrackedDevicePoseUpdated(*m_unObjectId, pose, sizeof(DriverPose_t));
+
+				// this is not implemented properly don't use
+				// void WaitGetPoses ( VR_ARRAY_COUNT(unPoseArrayCount) TrackedDevicePose_t* pPoseArray, uint32_t unPoseArrayCount ) = 0;
 			}
 		}
 
@@ -112,72 +115,72 @@ int runPoseTracking(vr::TrackedDeviceIndex_t *m_unObjectId) {
 	}
 	catch (const rs2::error & e)
 	{
-		DriverLog( "RealSense error calling %s (%s): %s\n", e.get_failed_function(), e.get_failed_args(), e.what() );
+		DriverLog("RealSense error calling %s (%s): %s\n", e.get_failed_function(), e.get_failed_args(), e.what());
 		return EXIT_FAILURE;
 	}
-	catch (const std::exception& e)
+	catch (const std::exception & e)
 	{
-		DriverLog( "%s\n", e.what() );
+		DriverLog("%s\n", e.what());
 		return EXIT_FAILURE;
 	}
 }
 
 
 // keys for use with the settings API
-static const char * const k_pch_Sample_Section = "driver_sample";
-static const char * const k_pch_Sample_SerialNumber_String = "serialNumber";
-static const char * const k_pch_Sample_ModelNumber_String = "modelNumber";
+static const char* const k_pch_Sample_Section = "driver_t265";
+static const char* const k_pch_Sample_SerialNumber_String = "serialNumber";
+static const char* const k_pch_Sample_ModelNumber_String = "modelNumber";
 
 
 
 //-----------------------------------------------------------------------------
-// Purpose:
+// Purpose:This part of the code sets up the actual device as far as steamvr is concerned. (note that device type is determined by the CServerDriver_T265 (Currently line 256)
 //-----------------------------------------------------------------------------
-class CSampleControllerDriver : public vr::ITrackedDeviceServerDriver
+class CT265Driver : public vr::ITrackedDeviceServerDriver
 {
 public:
-	CSampleControllerDriver()
+	CT265Driver()
 	{
 		m_unObjectId = vr::k_unTrackedDeviceIndexInvalid;
 		m_ulPropertyContainer = vr::k_ulInvalidPropertyContainer;
-// TO DO: Plugin actual info
+		// TO DO: Plugin actual info
 		m_sSerialNumber = "CTRL_1234";
 
 		m_sModelNumber = "MyController";
 	}
 
-	virtual ~CSampleControllerDriver()
+	virtual ~CT265Driver()
 	{
 	}
 
 
-	virtual EVRInitError Activate( vr::TrackedDeviceIndex_t unObjectId )
+	virtual EVRInitError Activate(vr::TrackedDeviceIndex_t unObjectId)
 	{
 		m_unObjectId = unObjectId;
-		m_ulPropertyContainer = vr::VRProperties()->TrackedDeviceToPropertyContainer( m_unObjectId );
+		m_ulPropertyContainer = vr::VRProperties()->TrackedDeviceToPropertyContainer(m_unObjectId);
 
-		vr::VRProperties()->SetStringProperty( m_ulPropertyContainer, Prop_ModelNumber_String, m_sModelNumber.c_str() );
-		vr::VRProperties()->SetStringProperty( m_ulPropertyContainer, Prop_RenderModelName_String, m_sModelNumber.c_str() );
+		vr::VRProperties()->SetStringProperty(m_ulPropertyContainer, Prop_ModelNumber_String, m_sModelNumber.c_str());
+		vr::VRProperties()->SetStringProperty(m_ulPropertyContainer, Prop_RenderModelName_String, m_sModelNumber.c_str());
 
 		// return a constant that's not 0 (invalid) or 1 (reserved for Oculus)
-		vr::VRProperties()->SetUint64Property( m_ulPropertyContainer, Prop_CurrentUniverseId_Uint64, 2 );
+		vr::VRProperties()->SetUint64Property(m_ulPropertyContainer, Prop_CurrentUniverseId_Uint64, 27);
 
-		// avoid "not fullscreen" warnings from vrmonitor
-		vr::VRProperties()->SetBoolProperty( m_ulPropertyContainer, Prop_IsOnDesktop_Bool, false );
+		// avoid "not fullscreen" warnings from vrmonitor |Fullscreen error still present
+		vr::VRProperties()->SetBoolProperty(m_ulPropertyContainer, Prop_IsOnDesktop_Bool, false);
 
-		// our sample device isn't actually tracked, so set this property to avoid having the icon blink in the status window
-		vr::VRProperties()->SetBoolProperty( m_ulPropertyContainer, Prop_NeverTracked_Bool, true );
+		// The Realsense Driver is intended to be a tracked device yall
+		vr::VRProperties()->SetBoolProperty(m_ulPropertyContainer, Prop_NeverTracked_Bool, false);
 
-		// even though we won't ever track we want to pretend to be the right hand so binding will work as expected
-		vr::VRProperties()->SetInt32Property( m_ulPropertyContainer, Prop_ControllerRoleHint_Int32, TrackedControllerRole_RightHand );
+		// our device is not a controller, it's a generic tracker | No Change upon commenting line out. | very confusing because at one point this did *something* maybe.
+		vr::VRProperties()->SetInt32Property(m_ulPropertyContainer, Prop_ControllerRoleHint_Int32, TrackedControllerRole_OptOut);
 
-		DriverLog("hello\n");
-		
+		DriverLog("Driver has been initialized\n");
+
 		// pose thread for realsense t-265
-		m_pPoseThread = new std::thread( runPoseTracking, &m_unObjectId );
-		if ( !m_pPoseThread )
+		m_pPoseThread = new std::thread(runPoseTracking, &m_unObjectId);
+		if (!m_pPoseThread)
 		{
-			DriverLog( "Unable to create tracking thread\n" );
+			DriverLog("Unable to create tracking thread\n");
 			return VRInitError_Driver_Failed;
 		}
 
@@ -193,7 +196,7 @@ public:
 	{
 	}
 
-	void *GetComponent( const char *pchComponentNameAndVersion )
+	void* GetComponent(const char* pchComponentNameAndVersion)
 	{
 		// override this to add a component to a driver
 		return NULL;
@@ -204,9 +207,9 @@ public:
 	}
 
 	/** debug request from a client */
-	virtual void DebugRequest( const char *pchRequest, char *pchResponseBuffer, uint32_t unResponseBufferSize )
+	virtual void DebugRequest(const char* pchRequest, char* pchResponseBuffer, uint32_t unResponseBufferSize)
 	{
-		if ( unResponseBufferSize >= 1 )
+		if (unResponseBufferSize >= 1)
 			pchResponseBuffer[0] = 0;
 	}
 
@@ -217,14 +220,8 @@ public:
 		pose.result = TrackingResult_Running_OK;
 		pose.deviceIsConnected = true;
 
-		pose.qWorldFromDriverRotation = HmdQuaternion_Init( 1, 0, 0, 0 );
-		pose.qDriverFromHeadRotation = HmdQuaternion_Init( 1, 0, 0, 0 );
-		// make the tracker go woosh up and down
-		std::chrono::milliseconds timeMs = std::chrono::duration_cast< std::chrono::milliseconds >(
-			std::chrono::system_clock::now().time_since_epoch()
-		);
-		double timeOffset = sin(timeMs.count() / 2000.0);
-		pose.vecPosition[1] = 1.0 + timeOffset / 4.0;
+		pose.qWorldFromDriverRotation = HmdQuaternion_Init(1, 0, 0, 0);
+		pose.qDriverFromHeadRotation = HmdQuaternion_Init(1, 0, 0, 0);
 
 		return pose;
 	}
@@ -234,16 +231,16 @@ public:
 		// In a real driver, this should happen from some pose tracking thread.
 		// The RunFrame interval is unspecified and can be very irregular if some other
 		// driver blocks it for some periodic task.
-		if ( m_unObjectId != vr::k_unTrackedDeviceIndexInvalid )
+		if (m_unObjectId != vr::k_unTrackedDeviceIndexInvalid)
 		{
 			// vr::VRServerDriverHost()->TrackedDevicePoseUpdated( m_unObjectId, GetPose(), sizeof( DriverPose_t ) );
 		}
 	}
 
-	void ProcessEvent( const vr::VREvent_t & vrEvent )
+	void ProcessEvent(const vr::VREvent_t& vrEvent)
 	{
 
-	} 
+	}
 
 	std::string GetSerialNumber() const { return m_sSerialNumber; }
 
@@ -253,62 +250,62 @@ private:
 
 	std::string m_sSerialNumber;
 	std::string m_sModelNumber;
-	std::thread *m_pPoseThread;
+	std::thread* m_pPoseThread;
 };
 
 //-----------------------------------------------------------------------------
 // Purpose:
 //-----------------------------------------------------------------------------
-class CServerDriver_Sample: public IServerTrackedDeviceProvider
+class CServerDriver_T265 : public IServerTrackedDeviceProvider
 {
 public:
-	virtual EVRInitError Init( vr::IVRDriverContext *pDriverContext ) ;
-	virtual void Cleanup() ;
-	virtual const char * const *GetInterfaceVersions() { return vr::k_InterfaceVersions; }
-	virtual void RunFrame() ;
-	virtual bool ShouldBlockStandbyMode()  { return false; }
-	virtual void EnterStandby()  {}
-	virtual void LeaveStandby()  {}
+	virtual EVRInitError Init(vr::IVRDriverContext* pDriverContext);
+	virtual void Cleanup();
+	virtual const char* const* GetInterfaceVersions() { return vr::k_InterfaceVersions; }
+	virtual void RunFrame();
+	virtual bool ShouldBlockStandbyMode() { return false; }
+	virtual void EnterStandby() {}
+	virtual void LeaveStandby() {}
 
 private:
-	CSampleControllerDriver *m_pController = nullptr;
+	CT265Driver* m_pTracker = nullptr;
 };
 
-CServerDriver_Sample g_serverDriverNull;
+CServerDriver_T265 g_serverDriverNull;
 
 
-EVRInitError CServerDriver_Sample::Init( vr::IVRDriverContext *pDriverContext )
+EVRInitError CServerDriver_T265::Init(vr::IVRDriverContext* pDriverContext)
 {
-	VR_INIT_SERVER_DRIVER_CONTEXT( pDriverContext );
-	InitDriverLog( vr::VRDriverLog() );
+	VR_INIT_SERVER_DRIVER_CONTEXT(pDriverContext);
+	InitDriverLog(vr::VRDriverLog());
 
-	m_pController = new CSampleControllerDriver();
-	vr::VRServerDriverHost()->TrackedDeviceAdded( m_pController->GetSerialNumber().c_str(), vr::TrackedDeviceClass_GenericTracker, m_pController );
+	m_pTracker = new CT265Driver();
+	vr::VRServerDriverHost()->TrackedDeviceAdded(m_pTracker->GetSerialNumber().c_str(), vr::TrackedDeviceClass_GenericTracker, m_pTracker);
 
 	return VRInitError_None;
 }
 
-void CServerDriver_Sample::Cleanup() 
+void CServerDriver_T265::Cleanup()
 {
 	CleanupDriverLog();
-	delete m_pController;
-	m_pController = NULL;
+	delete m_pTracker;
+	m_pTracker = NULL;
 }
 
 
-void CServerDriver_Sample::RunFrame()
+void CServerDriver_T265::RunFrame()
 {
-	if ( m_pController )
+	if (m_pTracker)
 	{
-		m_pController->RunFrame();
+		m_pTracker->RunFrame();
 	}
 
 	vr::VREvent_t vrEvent;
-	while ( vr::VRServerDriverHost()->PollNextEvent( &vrEvent, sizeof( vrEvent ) ) )
+	while (vr::VRServerDriverHost()->PollNextEvent(&vrEvent, sizeof(vrEvent)))
 	{
-		if ( m_pController )
+		if (m_pTracker)
 		{
-			m_pController->ProcessEvent( vrEvent );
+			m_pTracker->ProcessEvent(vrEvent);
 		}
 	}
 }
@@ -316,14 +313,14 @@ void CServerDriver_Sample::RunFrame()
 //-----------------------------------------------------------------------------
 // Purpose:
 //-----------------------------------------------------------------------------
-HMD_DLL_EXPORT void *HmdDriverFactory( const char *pInterfaceName, int *pReturnCode )
+HMD_DLL_EXPORT void* HmdDriverFactory(const char* pInterfaceName, int* pReturnCode)
 {
-	if( 0 == strcmp( IServerTrackedDeviceProvider_Version, pInterfaceName ) )
+	if (0 == strcmp(IServerTrackedDeviceProvider_Version, pInterfaceName))
 	{
 		return &g_serverDriverNull;
 	}
 
-	if( pReturnCode )
+	if (pReturnCode)
 		*pReturnCode = VRInitError_Init_InterfaceNotFound;
 
 	return NULL;
